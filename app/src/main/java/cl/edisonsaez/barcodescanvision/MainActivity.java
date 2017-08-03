@@ -1,21 +1,30 @@
 package cl.edisonsaez.barcodescanvision;
 
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
-import com.edwardvanraak.materialbarcodescanner.MaterialBarcodeScanner;
-import com.edwardvanraak.materialbarcodescanner.MaterialBarcodeScannerBuilder;
+import com.google.android.gms.common.api.CommonStatusCodes;
 import com.google.android.gms.vision.barcode.Barcode;
+
+import java.util.Arrays;
+
+import cl.edisonsaez.barcodescanvision.googlevision.BarcodeCaptureActivity;
 
 public class MainActivity extends AppCompatActivity {
 
     public static final String BARCODE_KEY = "BARCODE";
+    private static final int RC_HANDLE_CAMERA_PERM = 2;
+    private static final int RC_BARCODE_CAPTURE = 9001;
+    private static final String TAG = "TEST";
+
 
     private Barcode barcodeResult;
 
@@ -34,28 +43,43 @@ public class MainActivity extends AppCompatActivity {
 
     private void startScan() {
 
-        final MaterialBarcodeScanner materialBarcodeScanner = new MaterialBarcodeScannerBuilder()
-                .withActivity(MainActivity.this)
-                .withEnableAutoFocus(true)
-                .withBleepEnabled(true)
-                .withBackfacingCamera()
-                .withText("Scanning...")
-                .withResultListener(new MaterialBarcodeScanner.OnResultListener() {
-                    @Override
-                    public void onResult(Barcode barcode) {
-                        barcodeResult = barcode;
-                        ((TextView) findViewById(R.id.res_txt)).setText(barcode.rawValue);
-                    }
-                })
-                .build();
-        materialBarcodeScanner.startScan();
+        Intent intent = new Intent(this, BarcodeCaptureActivity.class);
+        intent.putExtra(BarcodeCaptureActivity.AutoFocus, true);
+        intent.putExtra(BarcodeCaptureActivity.UseFlash, false);
 
+        startActivityForResult(intent, RC_BARCODE_CAPTURE);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == RC_BARCODE_CAPTURE) {
+            if (resultCode == CommonStatusCodes.SUCCESS) {
+                if (data != null) {
+                    Barcode barcode = data.getParcelableExtra(BarcodeCaptureActivity.BarcodeObject);
+//                    statusMessage.setText(R.string.barcode_success);
+
+                    ((TextView) findViewById(R.id.res_txt)).setText(barcode.displayValue + "\n" + Arrays.toString(barcode.cornerPoints));
+//                    barcodeValue.setText(barcode.displayValue);
+                    Log.d(TAG, "Barcode read: " + barcode.displayValue);
+                } else {
+//                    statusMessage.setText(R.string.barcode_failure);
+                    Log.d(TAG, "No barcode captured, intent data is null");
+                }
+            } else {
+//                statusMessage.setText(String.format(getString(R.string.barcode_error),
+//                        CommonStatusCodes.getStatusCodeString(resultCode)));
+                Log.d(TAG, "Barcode read: " + R.string.barcode_error);
+            }
+        }
+        else {
+            super.onActivityResult(requestCode, resultCode, data);
+        }
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
 
-        if (requestCode != MaterialBarcodeScanner.RC_HANDLE_CAMERA_PERM) {
+        if (requestCode != RC_HANDLE_CAMERA_PERM) {
             super.onRequestPermissionsResult(requestCode, permissions, grantResults);
             return;
         }
